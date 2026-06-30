@@ -10,6 +10,61 @@
 
 ---
 
+## Fork notes (loopDelicious)
+
+This is a fork of [`colonelpanichacks/flock-you`](https://github.com/colonelpanichacks/flock-you)
+(`promiscious-dev` branch), adapted to run on a **generic ESP32-S3-WROOM-2
+(N32R8V)** dev board instead of the original Seeed XIAO ESP32-S3, and tightened
+for high-confidence passive use. All detection research and the original
+firmware are the work of the upstream authors credited below — this fork only
+adapts the build and hardware wiring.
+
+**What changed in this fork:**
+
+- **New PlatformIO env `esp32s3_wroom2`** (`platformio.ini`): `esp32-s3-devkitc-1`
+  board with `memory_type = opi_opi` / `flash_mode = opi` for the WROOM-2's
+  **octal** flash + PSRAM (the XIAO uses `qio_opi`), 32 MB flash, and
+  `ARDUINO_USB_CDC_ON_BOOT=0` so `Serial` runs over `UART0` via the board's
+  CP2102N bridge port.
+- **`BUZZER_PIN` 3 → 17** — GPIO3 is an ESP32-S3 strapping pin; GPIO17 is free
+  and clear of the octal flash/PSRAM bus. Wire a buzzer between GPIO17 and GND.
+- **Serial mirror disabled** — with `UART0` now on GPIO43, the Serial1 mirror on
+  the same pin would conflict.
+- **Detection tightened** — `CHECK_ADDR1 0` + `EMIT_BROAD_ADDR2 0`: fires *only*
+  on the wildcard-probe + Flock-OUI signature, dropping the broader,
+  false-positive-prone OUI paths. Still 100% passive (no AP, no transmit).
+- **Dashboard port configurable** (`api/flockyou.py`): set `FLOCK_PORT` (default
+  5000) to avoid macOS AirPlay Receiver, e.g. `FLOCK_PORT=5050`.
+
+**Build & run on ESP32-S3-WROOM-2:**
+
+```bash
+pio run -e esp32s3_wroom2 -t upload      # build + flash over the CP2102N port
+pio device monitor -e esp32s3_wroom2     # watch serial (close before starting Flask)
+
+# Dashboard
+pip install -r api/requirements.txt
+FLOCK_PORT=5050 python api/flockyou.py   # then open http://localhost:5050
+```
+
+**Credits** — none of this is my research:
+
+- **[colonelpanichacks](https://github.com/colonelpanichacks)** — the original
+  Flock-You firmware this fork is based on.
+- **ØяĐöØцяöЪöяцฐ / [@NitekryDPaul](https://github.com/NitekryDPaul)** — the
+  WiFi promiscuous detection method and OUI target list.
+- **Michael / [DeFlockJoplin](https://github.com/DeflockJoplin)** — the
+  wildcard-probe-request signature and the 31st OUI.
+- **Lucia Pintor & Luigi Atzori** — Wi-Fi probe-request Information Element
+  fingerprinting research.
+- **[DeFlock](https://deflock.me)** — crowdsourced ALPR location data.
+
+**License:** the upstream repository does not include an explicit license file.
+This fork claims no ownership of the original firmware or research. Before
+redistributing or using commercially, confirm terms with the upstream author.
+
+---
+
 ## Credit
 
 All WiFi promiscuous detection research — the **30-OUI target list**, the **promiscuous-mode strategy**, and the **addr1-receiver detection technique** — is the work of **ØяĐöØцяöЪöяцฐ / @NitekryDPaul**. The firmware here is a mod of his original firmware with added SPIFFS persistence and Flask-dashboard integration. Full research writeup: [`datasets/NitekryDPaul_wifi_ouis.md`](datasets/NitekryDPaul_wifi_ouis.md).
