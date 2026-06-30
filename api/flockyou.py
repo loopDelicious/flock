@@ -1529,12 +1529,16 @@ if __name__ == '__main__':
     heartbeat_thread = threading.Thread(target=send_heartbeat, daemon=True)
     heartbeat_thread.start()
     
+    # Port configurable via FLOCK_PORT (default 5000). macOS AirPlay Receiver
+    # squats on 5000, so override with e.g. FLOCK_PORT=5050.
+    PORT = int(os.environ.get('FLOCK_PORT', '5000'))
+
     print("Starting Flock You API server...")
-    print("Server will be available at: http://localhost:5000")
+    print(f"Server will be available at: http://localhost:{PORT}")
     print("Press Ctrl+C to stop the server")
     
     try:
-        socketio.run(app, debug=False, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)
+        socketio.run(app, debug=False, host='0.0.0.0', port=PORT, allow_unsafe_werkzeug=True)
     except KeyboardInterrupt:
         print("\nShutting down server...")
         # Clean up connections

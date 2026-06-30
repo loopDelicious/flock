@@ -9,7 +9,9 @@
 // CONFIG
 // ============================================================
 
-#define BUZZER_PIN 3
+// GPIO3 is a strapping pin on the ESP32-S3 (JTAG source select); relocated to
+// GPIO17 for the generic WROOM-2 dev board where the buzzer is wired externally.
+#define BUZZER_PIN 17
 #define USE_BUZZER 1
 
 // Onboard user LED on Seeed XIAO ESP32-S3 is GPIO21 and is ACTIVE LOW
@@ -19,7 +21,9 @@
 #define LED_ACTIVE_HIGH  0
 #define LED_FLASH_MS     120
 
-#define MIRROR_SERIAL    1
+// Disabled: with ARDUINO_USB_CDC_ON_BOOT=0, Serial (UART0) already uses GPIO43,
+// so the Serial1 mirror on the same pin would conflict and corrupt output.
+#define MIRROR_SERIAL    0
 #define MIRROR_TX_PIN    43
 #define MIRROR_BAUD      115200
 
@@ -60,8 +64,11 @@ static const size_t  fullHopChannelCount = sizeof(fullHopChannels) / sizeof(full
 #define HB_BEEP_GAP_MS         70
 
 #define ENABLE_SSID_MATCH 0
-#define CHECK_ADDR1 1   // dst/rx — catches Flock STAs receiving probe responses
+#define CHECK_ADDR1 0   // dst/rx broad OUI match — DISABLED (tightened: false-positive prone)
 #define CHECK_ADDR3 0   // bssid fallback for randomised addr2
+// Tightened build: only fire on the wildcard-probe + OUI signature. When 0, a
+// known-OUI frame that is NOT a wildcard probe does not emit a broad addr2 hit.
+#define EMIT_BROAD_ADDR2 0
 static const char* target_ssid_keywords[] = { "flock" };
 static const size_t SSID_KEYWORD_COUNT = sizeof(target_ssid_keywords) / sizeof(target_ssid_keywords[0]);
 
@@ -877,9 +884,13 @@ static void IRAM_ATTR wifiSniffer(void* buf, wifi_promiscuous_pkt_type_t type) {
         }
       }
     }
+#if EMIT_BROAD_ADDR2
     if (!emitted) {
       enqueueAlert(ALERT_OUI_ADDR2, hdr->addr2, rssi, ch, nullptr, "addr2");
     }
+#else
+    (void)emitted;  // tightened build: wildcard-probe signature only
+#endif
   }
 
 #if CHECK_ADDR1
@@ -1046,7 +1057,11 @@ void setup() {
   Serial.begin(115200);
   // Crucial for USB-optional operation: without this, Serial.write() will
   // block indefinitely on an ESP32-S3 USB-CDC port when no host is attached.
+  // Only exists on the USB-CDC Serial class; UART0 (CDC_ON_BOOT=0) doesn't
+  // block this way and has no such method.
+#if ARDUINO_USB_CDC_ON_BOOT
   Serial.setTxTimeoutMs(0);
+#endif
   delay(300);
 
 #if MIRROR_SERIAL

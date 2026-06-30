@@ -4,3 +4,9 @@
 .vscode/
 
 .DS_Store
+
+# Python virtualenv (esptool + Flask dashboard deps)
+.venv/
+
+# Flask dashboard runtime data (cumulative detections, settings)
+api/data/
